@@ -6,55 +6,60 @@ pipeline {
     }
 
     stages {
-        stage('build stage') {
-            steps {
-                sh 'mvn clean package'
-            }
-            post {
-                success {
-                    echo "build success"
-                }
-                failure {
-                    echo "build failure"
-                }
-            }
-        }
-        stage('build test') {
-            steps {
-                sh 'mvn test'
-            }
-            post {
-                success {
-                    echo "test success"
-                }
-                failure {
-                    echo "test failure"
-                }
-            }
-        }
-        stage("Run the spring application") {
-            steps { 
-                sh '''
-                    echo "Stopping existing Spring Boot application if running..."
-                    if pgrep -f spring_app_sak-0.0.1-SNAPSHOT.jar > /dev/null; then
-                        sudo pkill -f spring_app_sak-0.0.1-SNAPSHOT.jar
-                        echo "Application stopped."
-                    else
-                        echo "No existing application running."
-                    fi
 
-                    echo "Starting the Spring Boot application..."
-                    sudo java -jar target/spring_app_sak-0.0.1-SNAPSHOT.jar > /dev/null 2>&1 &
-                '''
+        stage('Build') {
+            steps {
+                dir('sak_spring_EC2_mysql_RDS-main') {
+                    sh 'mvn clean package'
+                }
+            }
+            post {
+                success {
+                    echo 'Build Success'
+                }
+                failure {
+                    echo 'Build Failure'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('sak_spring_EC2_mysql_RDS-main') {
+                    sh 'mvn test'
+                }
+            }
+            post {
+                success {
+                    echo 'Test Success'
+                }
+                failure {
+                    echo 'Test Failure'
+                }
+            }
+        }
+
+        stage('Run Spring Boot Application') {
+            steps {
+                dir('sak_spring_EC2_mysql_RDS-main') {
+                    sh '''
+                    echo "Stopping existing application..."
+                    sudo pkill -f spring_app_sak-0.0.1-SNAPSHOT.jar || true
+
+                    echo "Starting application..."
+                    sudo nohup java -jar target/spring_app_sak-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
+                    '''
+                }
             }
         }
     }
+
     post {
         success {
-            echo "pipeline success"
+            echo 'Pipeline Success'
         }
         failure {
-            echo "pipeline failure"
+            echo 'Pipeline Failure'
         }
     }
 }

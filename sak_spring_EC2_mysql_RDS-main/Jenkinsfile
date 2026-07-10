@@ -5,49 +5,70 @@ pipeline {
         maven 'maven'
     }
 
+    environment {
+        PROJECT_DIR = 'sak_spring_EC2_mysql_RDS-main'
+        JAR_NAME = 'spring_app_sak-0.0.1-SNAPSHOT.jar'
+    }
+
     stages {
+
+        stage('Checkout from Private Repo') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-pat',
+                    url: 'https://github.com/Suprita-Gond/sbootjenkins.git'
+            }
+        }
 
         stage('Build') {
             steps {
-                dir('sak_spring_EC2_mysql_RDS-main') {
+                dir("${PROJECT_DIR}") {
                     sh 'mvn clean package'
                 }
             }
             post {
                 success {
-                    echo 'Build Success'
+                    echo '✅ Build Success'
                 }
                 failure {
-                    echo 'Build Failure'
+                    echo '❌ Build Failure'
                 }
             }
         }
 
         stage('Test') {
             steps {
-                dir('sak_spring_EC2_mysql_RDS-main') {
+                dir("${PROJECT_DIR}") {
                     sh 'mvn test'
                 }
             }
             post {
                 success {
-                    echo 'Test Success'
+                    echo '✅ Test Success'
                 }
                 failure {
-                    echo 'Test Failure'
+                    echo '❌ Test Failure'
                 }
             }
         }
 
-        stage('Run Spring Boot Application') {
+        stage('Deploy Application') {
             steps {
-                dir('sak_spring_EC2_mysql_RDS-main') {
+                dir("${PROJECT_DIR}") {
                     sh '''
-                    echo "Stopping existing application..."
-                    sudo pkill -f spring_app_sak-0.0.1-SNAPSHOT.jar || true
-
-                    echo "Starting application..."
-                    sudo nohup java -jar target/spring_app_sak-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
+                        echo "========================================="
+                        echo "Stopping existing application..."
+                        sudo pkill -f "${JAR_NAME}" || echo "No existing process found"
+                        
+                        echo "Starting new application..."
+                        sudo nohup java -jar target/${JAR_NAME} > app.log 2>&1 &
+                        
+                        echo "Waiting for application to start..."
+                        sleep 10
+                        
+                        echo "Checking application status..."
+                        ps aux | grep "${JAR_NAME}" | grep -v grep || echo "Application not running"
+                        echo "========================================="
                     '''
                 }
             }
@@ -56,10 +77,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline Success'
+            echo '🎉 Pipeline Success! Application deployed successfully.'
         }
         failure {
-            echo 'Pipeline Failure'
+            echo '❌ Pipeline Failure! Check logs for details.'
         }
     }
 }
